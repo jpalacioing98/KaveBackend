@@ -262,4 +262,101 @@ Authorization: Bearer {any_user_token}
 ═══════════════════════════════════════════════════════════════════════════
 POST http://localhost:5000/api/auth/refresh
 Authorization: Bearer {refresh_token}
+
+
+
+
+
+
+
+[
+  {
+    "package_description": "Caja con documentos importantes",
+    "weight": 2.5,
+    "dimensions": "30x20x10 cm",
+    "pickup_address": {
+      "address_text": "Calle 45 #12-33, Bogotá",
+      "latitude": 4.648283,
+      "longitude": -74.247894,
+      "type": "pickup"
+    },
+    "delivery_address": {
+      "address_text": "Carrera 10 #80-20, Bogotá",
+      "latitude": 4.667821,
+      "longitude": -74.056937,
+      "type": "delivery"
+    }
+  },
+  {
+    "package_description": "Paquete de repuestos mecánicos",
+    "weight": 8.2,
+    "dimensions": "60x40x30 cm",
+    "pickup_address": {
+      "address_text": "Av. Boyacá #25-12, Bogotá",
+      "latitude": 4.620982,
+      "longitude": -74.123422,
+      "type": "pickup"
+    },
+    "delivery_address": {
+      "address_text": "Cra 70 #100-23, Bogotá",
+      "latitude": 4.701112,
+      "longitude": -74.097234,
+      "type": "delivery"
+    }
+  },
+  {
+    "package_description": "Sobre con contrato firmado",
+    "weight": 0.3,
+    "dimensions": "A4",
+    "pickup_address": {
+      "address_text": "Calle 72 #15-30, Bogotá",
+      "latitude": 4.659891,
+      "longitude": -74.059742,
+      "type": "pickup"
+    },
+    "delivery_address": {
+      "address_text": "Calle 100 #11B-45, Bogotá",
+      "latitude": 4.684221,
+      "longitude": -74.043901,
+      "type": "delivery"
+    },
+    "assigned_driver_id": 7
+  },
+  {
+    "package_description": "Caja pequeña con accesorios electrónicos",
+    "weight": 1.8,
+    "dimensions": "25x25x20 cm",
+    "pickup_address": {
+      "address_text": "Calle 50 #22-10, Bogotá",
+      "latitude": 4.632132,
+      "longitude": -74.081234,
+      "type": "pickup"
+    },
+    "delivery_address": {
+      "address_text": "Cra 15 #120-22, Bogotá",
+      "latitude": 4.699142,
+      "longitude": -74.038954,
+      "type": "delivery"
+    },
+    "assigned_driver_id": 7
+  },
+  {
+    "package_description": "Caja mediana con ropa",
+    "weight": 4.0,
+    "dimensions": "50x35x25 cm",
+    "pickup_address": {
+      "address_text": "Transversal 27 #45-19, Bogotá",
+      "latitude": 4.628882,
+      "longitude": -74.094521,
+      "type": "pickup"
+    },
+    "delivery_address": {
+      "address_text": "Calle 85 #14-45, Bogotá",
+      "latitude": 4.671441,
+      "longitude": -74.053871,
+      "type": "delivery"
+    }
+  }
+]
+
 """

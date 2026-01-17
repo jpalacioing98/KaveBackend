@@ -6,6 +6,7 @@ from app.models.driver import Driver
 from app.models.superAdmin import SuperUser
 from app import db
 
+from app.models.vehicle import Vehicle
 from app.utils import Validators
 
 class AdminController:
@@ -109,7 +110,10 @@ class AdminController:
             license_number = data.get('license_number', '').strip()
             phone = data.get('phone', '').strip()
             vehicle_info = data.get('vehicle_info', {})
+            
             admin_id = data.get('admin_id')
+            
+            
             
             if not email or not password or not full_name or not license_number:
                 return {
@@ -146,13 +150,23 @@ class AdminController:
                 full_name=full_name,
                 license_number=license_number,
                 phone=phone,
-                vehicle_info=vehicle_info
+                
             )
             driver.set_password(password)
             
             db.session.add(driver)
             db.session.flush()
             
+            vehicle = Vehicle(
+                make=vehicle_info['make'],
+                model=vehicle_info['model'],
+                year=vehicle_info['year'],
+                color=vehicle_info['color'],
+                plate=vehicle_info['plate'],
+                seats=vehicle_info['seats'],
+                driver_id=driver.id
+            )
+            db.session.add(vehicle)
             admin.assigned_drivers.append(driver)
             db.session.commit()
             

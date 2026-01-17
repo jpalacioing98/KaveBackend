@@ -7,43 +7,50 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-
+from flask_migrate import Migrate
+from config import Config
 
 
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
 jwt = JWTManager()
+migrate = Migrate()
+
 # Rate limiter para prevenir ataques de fuerza bruta
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
 )
 
-def create_app(Config):
+def create_app( config_class=Config):
     app = Flask(__name__)
-    app.config.from_object(Config)
+    app.config.from_object(config_class)
     
     # Inicializar extensiones
     db.init_app(app)
     bcrypt.init_app(app)
     jwt.init_app(app)
+    migrate.init_app(app,db)
     CORS(app, origins=app.config['CORS_ORIGINS'])
     limiter.init_app(app)
     
      # Importar blueprints **después** de inicializar extensiones
     from app.routes.auth_routes import auth_bp
     from app.routes.admin_routes import admin_bp
-    from app.routes.driver_routes import driver_bp
+    from app.routes.parlce_routes import parcel_bp
+    from app.routes.custom_routes import custom_trip_bp
+    #from app.routes.driver_routes import driver_bp
     
     # Registrar blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(driver_bp)
+    app.register_blueprint(parcel_bp)
+    app.register_blueprint(custom_trip_bp)
     
     # # Crear tablas
-    # with app.app_context():
-    #     db.create_all()
+    with app.app_context():
+        db.create_all()
     
     # Manejadores de errores JWT
     @jwt.expired_token_loader

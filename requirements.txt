@@ -1,5 +1,6 @@
 Flask
 Flask-SQLAlchemy
+Flask-migrate
 Flask-Bcrypt
 Flask-JWT-Extended
 Flask-Limiter
