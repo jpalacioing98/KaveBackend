@@ -8,3 +8,5 @@ Flask-CORS
 python-dotenv
 email-validator
 psycopg2
+pymysql
+
