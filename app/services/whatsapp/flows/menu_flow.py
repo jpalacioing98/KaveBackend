@@ -18,6 +18,7 @@ def menu_flow(wa_user, text):
         wa_user.flow = "trip_request"
         wa_user.step = "start"
         db.session.commit()
+        
         send_message(wa_user.phone, "🚕 *Solicitud de viaje*\n\nCuéntame desde dónde viajas.")
         return
 

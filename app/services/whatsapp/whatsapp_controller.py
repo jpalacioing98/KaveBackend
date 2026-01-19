@@ -61,8 +61,8 @@ def handle_webhook():
         registration_flow(wa_user, text)
         return jsonify({"status": "ok"}), 200
    
-    # 🍔 Flujo de menú (usuario ya registrado)
-    elif wa_user.flow == "menu" or wa_user.flow is None:
+    # 🍔 Flujo de menú (usuario ya registrado) 
+    elif wa_user.flow == "menu" or wa_user.flow == "Menu" or wa_user.flow == "Menú" or wa_user.flow is None:
         print("🍔 Procesando flujo de menú")
         # Si flow es None, actualizarlo a menu
         if wa_user.flow is None:
@@ -76,24 +76,32 @@ def handle_webhook():
     elif wa_user.flow == "trip_request":
         print("🚕 Procesando solicitud de viaje")
         send_message(wa_user.phone, "🚧 Función en desarrollo\n\nEscribe *menu* para volver al menú principal.")
+        wa_user.flow = "menu"
+        db.session.commit()
         return jsonify({"status": "ok"}), 200
 
     # 🗓️ Flujo de viaje programado
     elif wa_user.flow == "scheduled_trip":
         print("🗓️ Procesando viaje programado")
         send_message(wa_user.phone, "🚧 Función en desarrollo\n\nEscribe *menu* para volver al menú principal.")
+        wa_user.flow = "menu"
+        db.session.commit()
         return jsonify({"status": "ok"}), 200
 
     # 📦 Flujo de encomiendas
     elif wa_user.flow == "parcel":
         print("📦 Procesando encomiendas")
         send_message(wa_user.phone, "🚧 Función en desarrollo\n\nEscribe *menu* para volver al menú principal.")
+        wa_user.flow = "menu"
+        db.session.commit()
         return jsonify({"status": "ok"}), 200
 
     # 🚚 Flujo de fletes
     elif wa_user.flow == "freight":
         print("🚚 Procesando fletes")
         send_message(wa_user.phone, "🚧 Función en desarrollo\n\nEscribe *menu* para volver al menú principal.")
+        wa_user.flow = "menu"
+        db.session.commit()
         return jsonify({"status": "ok"}), 200
     
     # ❌ Flujo desconocido
