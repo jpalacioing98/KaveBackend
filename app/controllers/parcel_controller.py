@@ -10,6 +10,102 @@ from app.models.package import PackageTrip
 from app.models.trip_addresses import Address
 
 
+def create_package_trip_service(data: dict) -> dict:
+    """
+    Servicio para crear un viaje de paquete.
+    
+    Args:
+        data: Diccionario con los datos del paquete
+        
+    Returns:
+        dict: Resultado de la operación con 'success', 'data' o 'error'
+        
+    Raises:
+        ValueError: Si faltan campos obligatorios o datos inválidos
+        Exception: Otros errores durante la creación
+    """
+    try:
+        # === Validaciones básicas ===
+        if not data.get("package_description"):
+            raise ValueError("El campo 'package_description' es obligatorio")
+
+        pickup_data = data.get("pickup_address")
+        delivery_data = data.get("delivery_address")
+
+        if not pickup_data or not delivery_data:
+            raise ValueError("pickup_address y delivery_address son obligatorios")
+
+        # === Crear direcciones ===
+        pickup_address = Address(
+            address_text=pickup_data["address_text"],
+            latitude=pickup_data.get("latitude"),
+            longitude=pickup_data.get("longitude"),
+            type=AddressType.PICKUP,
+            order=1
+        )
+        delivery_address = Address(
+            address_text=delivery_data["address_text"],
+            latitude=delivery_data.get("latitude"),
+            longitude=delivery_data.get("longitude"),
+            type=AddressType.DELIVERY,
+            order=2
+        )
+
+        db.session.add(pickup_address)
+        db.session.add(delivery_address)
+        db.session.flush()
+
+        # === Determinar estado inicial según driver_id ===
+        driver_id = data.get("driver_id")
+        
+        # Convertir string "Null" a None
+        if driver_id == "Null" or driver_id == "null" or driver_id == "":
+            driver_id = None
+        
+        initial_status = TripStatus.PENDING if driver_id is not None else TripStatus.AVAILABLE
+
+        # === Crear paquete ===
+        package_trip = PackageTrip(
+            trip_type=TripType.PACKAGE,
+            status=initial_status,
+            driver_id=driver_id,
+            vehicle_id=data.get("vehicle_id"),
+            price=data.get("price"),
+            notes=data.get("notes"),
+            departure_time=datetime.fromisoformat(data["departure_time"]) if data.get("departure_time") else None,
+            arrival_time=datetime.fromisoformat(data["arrival_time"]) if data.get("arrival_time") else None,
+            package_description=data["package_description"],
+            weight=data.get("weight"),
+            dimensions=data.get("dimensions"),
+            pickup_address_id=pickup_address.id,
+            delivery_address_id=delivery_address.id,
+            created_at=datetime.utcnow()
+        )
+
+        db.session.add(package_trip)
+        db.session.commit()
+
+        return {
+            "success": True,
+            "message": "Paquete creado exitosamente",
+            "data": package_trip.to_dict()
+        }
+
+    except ValueError as ve:
+        db.session.rollback()
+        return {
+            "success": False,
+            "error": str(ve),
+            "error_type": "validation"
+        }
+    except Exception as e:
+        db.session.rollback()
+        return {
+            "success": False,
+            "error": str(e),
+            "error_type": "server"
+        }
+
 # 1️⃣ Crear un paquete
 def create_package_trip():
     try:
