@@ -1,7 +1,8 @@
 **/__pycache__/
 env/
-.env
 task.txt
 /test
-config.py
 migrations/
+.env
+test.py
+config.py
