@@ -1,0 +1,400 @@
+from urllib import response
+from app import db
+from app.services.whatsapp import send_message, add_hours_to_now
+from sqlalchemy.orm.attributes import flag_modified
+from app.controllers.parcel_controller import create_package_trip_service
+import json
+from datetime import datetime
+
+
+
+def parcel_flow(wa_user, text):
+    """
+    Flujo para crear un envío de paquete desde WhatsApp
+    (Sin manejo de ubicaciones - delegado a location_flow)
+    
+    Args:
+        wa_user: Usuario de WhatsApp
+        text: Texto del mensaje
+    """
+    step = wa_user.step 
+    
+    # Deserializar temp_data
+    if isinstance(wa_user.temp_data, str):
+        try:
+            data = json.loads(wa_user.temp_data)
+        except:
+            data = {}
+    elif wa_user.temp_data is None:
+        data = {}
+    else:
+        data = wa_user.temp_data.copy() if isinstance(wa_user.temp_data, dict) else {}
+
+    # ---- INICIO ----
+    if step == "start":
+        wa_user.temp_data = "{}"
+        wa_user.step = "description"
+        db.session.commit()
+        
+        send_message(
+            wa_user.phone,
+            "📦 *Nuevo Envío de Paquete*\n\n"
+            "Describe el contenido del paquete:"
+        )
+        return
+
+    # ---- DESCRIPCIÓN ----
+    elif step == "description":
+        data["package_description"] = text.strip()
+        wa_user.temp_data = json.dumps(data, ensure_ascii=False)
+        wa_user.step = "weight"
+        flag_modified(wa_user, 'temp_data')
+        
+        print("📝 Step DESCRIPTION - Datos guardados:", wa_user.temp_data)
+        db.session.commit()
+        
+        send_message(
+            wa_user.phone,
+            "⚖️ ¿Cuál es el peso del paquete en kilogramos?\n\n"
+            "Ejemplo: 5.2\n"
+            "O escribe *skip* para omitir"
+        )
+        return
+
+    # ---- PESO ----
+    elif step == "weight":
+        print(f"🔍 DEBUG WEIGHT - Texto recibido: '{text}' | Tipo: {type(text)} | Longitud: {len(text)}")
+        
+        if text.lower().strip() != "skip":
+            try:
+                # Limpiar el texto: remover espacios y reemplazar coma por punto
+                clean_text = text.strip().replace(',', '.')
+                print(f"🔍 DEBUG WEIGHT - Texto limpio: '{clean_text}'")
+                
+                weight_value = float(clean_text)
+                data["weight"] = weight_value
+                print(f"✅ Peso guardado exitosamente: {data['weight']}")
+            except ValueError as e:
+                print(f"❌ Error al convertir peso: '{text}' | Error: {str(e)}")
+                send_message(
+                    wa_user.phone,
+                    "❌ Por favor ingresa un número válido\n\n"
+                    "Ejemplos válidos:\n• 5.2\n• 5,2\n• 10\n\n"
+                    "O escribe *skip* para omitir"
+                )
+                return
+            except Exception as e:
+                print(f"❌ Error inesperado en weight: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                send_message(
+                    wa_user.phone,
+                    "❌ Ocurrió un error. Intenta de nuevo."
+                )
+                return
+        
+        wa_user.temp_data = json.dumps(data, ensure_ascii=False)
+        wa_user.step = "dimensions"
+        flag_modified(wa_user, 'temp_data')
+        
+        print("📝 Step WEIGHT - Datos guardados:", wa_user.temp_data)
+        db.session.commit()
+        
+        send_message(
+            wa_user.phone,
+            "📏 Ingresa las dimensiones del paquete\n\n"
+            "Formato: *LargoxAnchoxAlto cm*\n"
+            "Ejemplo: 45x35x25 cm\n\n"
+            "O escribe *skip* para omitir"
+        )
+        return
+
+    # ---- DIMENSIONES ----
+    elif step == "dimensions":
+        if text.lower() != "skip":
+            data["dimensions"] = text.strip()
+            data["finaly"]="notes"
+        
+        wa_user.temp_data = json.dumps(data, ensure_ascii=False)
+        # Cambiar flow a location para manejar ubicación de recogida
+        wa_user.flow = "location"
+        wa_user.step = "pickup_location"
+        flag_modified(wa_user, 'temp_data')
+        
+        print("📝 Step DIMENSIONS - Datos guardados:", wa_user.temp_data)
+        db.session.commit()
+        
+        send_message(
+            wa_user.phone,
+            "📍 *Ubicación de Recogida*\n\n"
+            "Por favor, comparte la ubicación de donde se recogerá el paquete.\n\n"
+            "📎 Usa el botón de adjuntar → Ubicación"
+        )
+        return
+
+    # # ---- PRECIO ----
+    # elif step == "price":
+    #     try:
+    #         data["price"] = float(text.strip())
+    #     except ValueError:
+    #         send_message(
+    #             wa_user.phone,
+    #             "❌ Por favor ingresa un número válido\n\n"
+    #             "Ejemplo: 18000"
+    #         )
+    #         return
+        
+    #     wa_user.temp_data = json.dumps(data, ensure_ascii=False)
+    #     wa_user.step = "notes"
+    #     flag_modified(wa_user, 'temp_data')
+        
+    #     print("📝 Step PRICE - Datos guardados:", wa_user.temp_data)
+    #     db.session.commit()
+        
+    #     send_message(
+    #         wa_user.phone,
+    #         "📝 ¿Alguna nota o instrucción especial?\n\n"
+    #         "Ejemplo: Contiene alimentos perecederos\n\n"
+    #         "O escribe *skip* para omitir"
+    #     )
+    #     return
+
+    # ---- NOTAS ----
+    elif step == "notes":
+        if text.lower() != "skip":
+            data["notes"] = text.strip()
+        
+        data["price"]=20000
+        dt = datetime.strptime(add_hours_to_now(1), "%d/%m/%Y %H:%M")
+        data["departure_time"] = dt.isoformat()
+        dt = datetime.strptime(add_hours_to_now(4), "%d/%m/%Y %H:%M")
+        data["arrival_time"] = dt.isoformat()
+
+        wa_user.temp_data = json.dumps(data, ensure_ascii=False)
+        wa_user.step = "confirm"
+        flag_modified(wa_user, 'temp_data')
+        
+        print("📝 Step NOTES - Datos guardados:", wa_user.temp_data)
+        db.session.commit()
+        
+      
+        # Mostrar resumen
+        summary = f"📦 *Resumen del Envío*\n\n"
+        summary += f"*Descripción:* {data.get('package_description', 'N/A')}\n"
+        if data.get('weight'):
+            summary += f"*Peso:* {data['weight']} kg\n"
+        if data.get('dimensions'):
+            summary += f"*Dimensiones:* {data['dimensions']}\n"
+        summary += f"*Precio:* ${data.get('price', 0):,.0f}\n"
+        
+        pickup = data.get('pickup_address', {})
+        summary += f"\n📍 *Recogida:*\n{pickup.get('location_text', 'N/A')}\n"
+        
+        delivery = data.get('delivery_address', {})
+        summary += f"\n📍 *Entrega:*\n{delivery.get('location_text', 'N/A')}\n"
+        
+        if data.get('notes'):
+            summary += f"\n📝 *Notas:* {data['notes']}\n"
+        
+        if data.get('departure_time'):
+            dt = datetime.fromisoformat(data['departure_time'])
+            summary += f"\n🕐 *Recogida:* {dt.strftime('%d/%m/%Y %H:%M')}\n"
+        
+        if data.get('arrival_time'):
+            dt = datetime.fromisoformat(data['arrival_time'])
+            summary += f"🕑 *Entrega:* {dt.strftime('%d/%m/%Y %H:%M')}\n"
+        
+        summary += f"\n¿Confirmas el envío?\n\n1️⃣ Sí\n2️⃣ No"
+        
+        send_message(wa_user.phone, summary)
+        return
+
+    # # ---- HORA DE RECOGIDA ----
+    # elif step == "departure_time":
+    #     if text.lower() != "skip":
+    #         try:
+    #             # Convertir formato DD/MM/YYYY HH:MM a ISO
+    #             dt = datetime.strptime(text.strip(), "%d/%m/%Y %H:%M")
+    #             data["departure_time"] = dt.isoformat()
+    #         except ValueError:
+    #             send_message(
+    #                 wa_user.phone,
+    #                 "❌ Formato incorrecto\n\n"
+    #                 "Usa: *DD/MM/YYYY HH:MM*\n"
+    #                 "Ejemplo: 21/10/2025 10:00"
+    #             )
+    #             return
+        
+    #     wa_user.temp_data = json.dumps(data, ensure_ascii=False)
+    #     wa_user.step = "arrival_time"
+    #     flag_modified(wa_user, 'temp_data')
+        
+    #     print("📝 Step DEPARTURE_TIME - Datos guardados:", wa_user.temp_data)
+    #     db.session.commit()
+        
+    #     send_message(
+    #         wa_user.phone,
+    #         "🕑 *Hora de Entrega Estimada*\n\n"
+    #         "Formato: *DD/MM/YYYY HH:MM*\n"
+    #         "Ejemplo: 21/10/2025 11:00\n\n"
+    #         "O escribe *skip* para omitir"
+    #     )
+    #     return
+
+    # # ---- HORA DE ENTREGA ----
+    # elif step == "arrival_time":
+    #     if text.lower() != "skip":
+    #         try:
+    #             # Convertir formato DD/MM/YYYY HH:MM a ISO
+    #             dt = datetime.strptime(text.strip(), "%d/%m/%Y %H:%M")
+    #             data["arrival_time"] = dt.isoformat()
+    #         except ValueError:
+    #             send_message(
+    #                 wa_user.phone,
+    #                 "❌ Formato incorrecto\n\n"
+    #                 "Usa: *DD/MM/YYYY HH:MM*\n"
+    #                 "Ejemplo: 21/10/2025 11:00"
+    #             )
+    #             return
+        
+    #     wa_user.temp_data = json.dumps(data, ensure_ascii=False)
+    #     wa_user.step = "confirm"
+    #     flag_modified(wa_user, 'temp_data')
+        
+    #     print("📝 Step ARRIVAL_TIME - Datos guardados:", wa_user.temp_data)
+    #     db.session.commit()
+        
+    #     # Mostrar resumen
+    #     summary = f"📦 *Resumen del Envío*\n\n"
+    #     summary += f"*Descripción:* {data.get('package_description', 'N/A')}\n"
+    #     if data.get('weight'):
+    #         summary += f"*Peso:* {data['weight']} kg\n"
+    #     if data.get('dimensions'):
+    #         summary += f"*Dimensiones:* {data['dimensions']}\n"
+    #     summary += f"*Precio:* ${data.get('price', 0):,.0f}\n"
+        
+    #     pickup = data.get('pickup_address', {})
+    #     summary += f"\n📍 *Recogida:*\n{pickup.get('location_text', 'N/A')}\n"
+        
+    #     delivery = data.get('delivery_address', {})
+    #     summary += f"\n📍 *Entrega:*\n{delivery.get('location_text', 'N/A')}\n"
+        
+    #     if data.get('notes'):
+    #         summary += f"\n📝 *Notas:* {data['notes']}\n"
+        
+    #     if data.get('departure_time'):
+    #         dt = datetime.fromisoformat(data['departure_time'])
+    #         summary += f"\n🕐 *Recogida:* {dt.strftime('%d/%m/%Y %H:%M')}\n"
+        
+    #     if data.get('arrival_time'):
+    #         dt = datetime.fromisoformat(data['arrival_time'])
+    #         summary += f"🕑 *Entrega:* {dt.strftime('%d/%m/%Y %H:%M')}\n"
+        
+    #     summary += f"\n¿Confirmas el envío?\n\n1️⃣ Sí\n2️⃣ No"
+        
+    #     send_message(wa_user.phone, summary)
+    #     return
+
+    # ---- CONFIRMAR ----
+    elif step == "confirm":
+        if text == "1":
+            db.session.refresh(wa_user)
+            
+            if isinstance(wa_user.temp_data, str):
+                try:
+                    data = json.loads(wa_user.temp_data)
+                except:
+                    data = {}
+            else:
+                data = wa_user.temp_data or {}
+            
+            print("📝 Datos finales RECARGADOS:", data)
+            
+            # Validar campos obligatorios
+            required_fields = ["package_description", "pickup_address", "delivery_address", "price"]
+            missing = [f for f in required_fields if f not in data or not data[f]]
+            
+            if missing:
+                print(f"❌ Faltan campos: {missing}")
+                send_message(
+                    wa_user.phone,
+                    f"❌ Error: Faltan datos ({', '.join(missing)}).\n"
+                    f"Empecemos de nuevo.\nEscribe *Hola*"
+                )
+                wa_user.flow = None
+                wa_user.step = None
+                wa_user.temp_data = None
+                db.session.commit()
+                return
+            
+            try:
+                # Llamar a la función de creación de paquete
+                response = create_package_trip_service(data)
+                
+                if response["success"]:
+                    package_info = response["data"]
+                    
+                    # Resetear flujo
+                    wa_user.flow = "menu"
+                    wa_user.step = None
+                    wa_user.temp_data = None
+                    db.session.commit()
+                    
+                    # Mensaje de éxito
+                    success_msg = f"🎉 *¡Envío Creado Exitosamente!*\n\n"
+                    success_msg += f"📦 *ID:* {package_info.get('id')}\n"
+                    success_msg += f"📊 *Estado:* {package_info.get('status')}\n"
+                    success_msg += f"💰 *Precio:* ${data.get('price', 0):,.0f}\n\n"
+                    success_msg += f"✅ Tu paquete ha sido registrado y está listo para ser asignado a un conductor."
+                    
+                    send_message(wa_user.phone, success_msg)
+                    
+                    # Volver al menú
+                    from app.services.whatsapp.flows.menu_flow import send_menu
+                    import time
+                    time.sleep(1)
+                    
+                    send_menu(wa_user.phone)
+                    
+                else:
+                    # Error en la creación
+                    error_msg = response["error"]
+                    send_message(
+                        wa_user.phone,
+                        f"❌ Error al crear el envío:\n{error_msg}\n\n"
+                        f"Intenta nuevamente. Escribe *Hola*"
+                    )
+                    
+                    wa_user.flow = None
+                    wa_user.step = None
+                    wa_user.temp_data = None
+                    db.session.commit()
+                    
+            except Exception as e:
+                db.session.rollback()
+                print(f"❌ Error en creación de paquete: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                
+                send_message(
+                    wa_user.phone,
+                    "❌ Error al crear el envío. Intenta nuevamente.\nEscribe *Hola*"
+                )
+                wa_user.flow = None
+                wa_user.step = None
+                wa_user.temp_data = None
+                db.session.commit()
+                
+        else:
+            # Cancelar
+            wa_user.flow = None
+            wa_user.step = None
+            wa_user.temp_data = None
+            db.session.commit()
+            
+            send_message(
+                wa_user.phone,
+                "❌ Envío cancelado.\nEscribe *Hola* para volver al menú."
+            )
+        
+        return

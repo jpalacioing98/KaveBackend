@@ -6,3 +6,4 @@ migrations/
 .env
 test.py
 config.py
+test.json

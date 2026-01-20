@@ -5,6 +5,9 @@ from app.models.whatsapp_user import WhatsAppUser
 from app import db
 from app.models.traveler import Traveler
 from app.services.whatsapp.flows.menu_flow import menu_flow, send_menu
+from app.services.whatsapp.flows.parcel_flow import parcel_flow
+from app.services.whatsapp.flows.location_flow import location_flow
+
 
 def get_or_create_whatsapp_user(phone):
     wa_user = WhatsAppUser.query.filter_by(phone=phone).first()
@@ -32,11 +35,11 @@ def handle_webhook():
     data = request.get_json()
     print("📩 WhatsApp:", data)
 
-    sender, text = extract_message(data)
+    sender, text, location_data = extract_message(data)
     if not sender:
         return jsonify({"status": "ignored"}), 200
 
-    print(f"👤 Mensaje de: {sender}, Texto: '{text}'")
+    print(f"👤 Mensaje de: {sender}, Texto: '{text}', Location: {location_data is not None} ,Location_data: {location_data }")
 
     wa_user = WhatsAppUser.query.filter_by(phone=sender).first()
 
@@ -90,10 +93,21 @@ def handle_webhook():
 
     # 📦 Flujo de encomiendas
     elif wa_user.flow == "parcel":
-        print("📦 Procesando encomiendas")
-        send_message(wa_user.phone, "🚧 Función en desarrollo\n\nEscribe *menu* para volver al menú principal.")
-        wa_user.flow = "menu"
-        db.session.commit()
+        print("📦 Procesando flujo de paquete")
+        parcel_flow(wa_user, text)
+        return jsonify({"status": "ok"}), 200
+    
+    # 📍 Flujo de ubicaciones (independiente)
+    elif wa_user.flow == "location":
+        print("📍 Procesando flujo de ubicación")
+        
+        # Determinar si es ubicación de recogida o entrega
+        if wa_user.step in ["pickup_location", "pickup_location_text"]:
+            print(f"   → Ubicación de RECOGIDA (step: {wa_user.step})")
+        elif wa_user.step in ["delivery_location", "delivery_location_text"]:
+            print(f"   → Ubicación de ENTREGA (step: {wa_user.step})")
+        
+        location_flow(wa_user, text=text, location_data=location_data)
         return jsonify({"status": "ok"}), 200
 
     # 🚚 Flujo de fletes
@@ -111,4 +125,3 @@ def handle_webhook():
         db.session.commit()
         send_menu(wa_user.phone)
         return jsonify({"status": "ok"}), 200
-

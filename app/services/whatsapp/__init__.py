@@ -1,6 +1,7 @@
 from config import Config
 from flask import Blueprint
 import requests
+from datetime import datetime, timedelta
 
 
 whatsapp_bp = Blueprint("whatsapp", __name__)
@@ -10,19 +11,49 @@ def extract_message(data):
         value = data["entry"][0]["changes"][0]["value"]
         message = value["messages"][0]
         sender = message["from"]
+        message_type = message["type"]
 
-        if message["type"] == "text":
+        if message_type == "text":
             text = message["text"]["body"].strip()
-        elif message["type"] == "interactive":
-            text = message["interactive"]["button_reply"]["id"]
+            return sender, text.lower(), None
+        
+        elif message_type == "interactive":
+            # Botón de respuesta
+            if "button_reply" in message["interactive"]:
+                text = message["interactive"]["button_reply"]["id"]
+            # Lista de respuesta
+            elif "list_reply" in message["interactive"]:
+                text = message["interactive"]["list_reply"]["id"]
+            else:
+                text = None
+            return sender, text.lower() if text else None, None
+        
+        elif message_type == "location":
+            location = message["location"]
+            latitude = location["latitude"]
+            longitude = location["longitude"]
+            
+            # Datos opcionales
+            name = location.get("name")  # Nombre del lugar (si existe)
+            address = location.get("address")  # Dirección (si existe)
+            
+            location_data = {
+                "latitude": latitude,
+                "longitude": longitude,
+                "name": name,
+                "address": address,
+                "locations":location
+            }
+            
+            return sender, None, location_data
+        
         else:
-            text = None
+            return sender, None, None
 
-        return sender, text.lower() if text else None
-
-    except Exception:
-        return None, None
-
+    except Exception as e:
+        print(f"Error extrayendo mensaje: {e}")
+        return None, None, None
+    
 
 def send_message(to, text):
     url = f"https://graph.facebook.com/v20.0/{Config.PHONE_NUMBER_ID}/messages"
@@ -94,3 +125,16 @@ def send_interactive_menu(phone, body, buttons):
     
     print(f"✅ Mensaje interactivo enviado exitosamente")
     return response.json()
+
+
+def add_hours_to_now(hours):
+    """
+    Devuelve la hora del sistema sumando el número de horas indicado.
+    hours: int | float (puede ser negativo)
+    Retorna: datetime (hora local)
+    """
+    try:
+        hrs = float(hours)
+    except (TypeError, ValueError):
+        raise ValueError("hours debe ser un número")
+    return (datetime.now() + timedelta(hours=hrs)).strftime("%d/%m/%Y %H:%M")

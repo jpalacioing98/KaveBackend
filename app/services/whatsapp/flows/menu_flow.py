@@ -1,5 +1,6 @@
 from app.services.whatsapp import send_message
 from app import db
+from app.services.whatsapp.flows.parcel_flow import parcel_flow
 
 def menu_flow(wa_user, text):
     text = text.strip()
@@ -37,7 +38,7 @@ def menu_flow(wa_user, text):
         wa_user.flow = "parcel"
         wa_user.step = "start"
         db.session.commit()
-        send_message(wa_user.phone, "📦 *Encomiendas*\n\n¿Qué deseas enviar?")
+        parcel_flow(wa_user, "")
         return
 
     # Opción 4: Fletes
