@@ -124,6 +124,121 @@ class CustomTripController:
             return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
 
     @staticmethod
+    def create_custom_trip_service(data: dict) -> dict:
+        """
+        Servicio para crear un nuevo viaje personalizado.
+        
+        Args:
+            data: Diccionario con los datos del viaje:
+            {
+                "custom_trip_type": "one_way" | "round" | "tour",
+                "passenger_count": int,
+                "driver_id": int (opcional),
+                "vehicle_id": int (opcional),
+                "price": float (opcional),
+                "notes": str (opcional),
+                "departure_time": ISO datetime (opcional),
+                "addresses": [
+                    {
+                        "address_text": str,
+                        "latitude": float (opcional),
+                        "longitude": float (opcional),
+                        "type": "pickup" | "delivery" | "waypoint",
+                        "order": int
+                    }
+                ],
+                // Campos específicos según el tipo:
+                // OneWay: "allow_shared_ride", "is_reserved"
+                // Round: "requires_wait", "wait_time_minutes"
+                // Tour: "includes_driver_expenses", "rental_days", "daily_rate"
+            }
+            
+        Returns:
+            dict: Resultado con 'success', 'data' o 'error'
+        """
+        try:
+            # === Validaciones básicas ===
+            if not data:
+                raise ValueError("No se proporcionaron datos")
+
+            # Validar tipo de viaje
+            custom_trip_type = data.get("custom_trip_type")
+            if not custom_trip_type:
+                raise ValueError("custom_trip_type es requerido")
+
+            try:
+                trip_type_enum = CustomTripType(custom_trip_type)
+            except ValueError:
+                raise ValueError("Tipo de viaje inválido. Debe ser: one_way, round, o tour")
+
+            # Validar direcciones
+            addresses_data = data.get("addresses", [])
+            if not addresses_data or len(addresses_data) < 2:
+                raise ValueError("Se requieren al menos 2 direcciones")
+
+            # === Crear el viaje según el tipo ===
+            trip = None
+            if trip_type_enum == CustomTripType.ONE_WAY:
+                trip = CustomTripController._create_one_way(data)
+            elif trip_type_enum == CustomTripType.ROUND:
+                trip = CustomTripController._create_round(data)
+            elif trip_type_enum == CustomTripType.TOUR:
+                trip = CustomTripController._create_tour(data)
+            if not trip:
+                raise Exception("Error al crear el viaje")
+
+            # === Agregar direcciones ===
+            for addr_data in addresses_data:
+                address = Address(
+                    address_text=addr_data.get("address_text"),
+                    latitude=addr_data.get("latitude"),
+                    longitude=addr_data.get("longitude"),
+                    type=AddressType(addr_data.get("type", "waypoint")),
+                    order=addr_data.get("order", 1)
+                )
+                db.session.add(address)
+                db.session.flush()
+
+                trip_address = TripAddress(
+                    trip_id=trip.id,
+                    address_id=address.id
+                )
+                db.session.add(trip_address)
+
+            # === Validar el viaje ===
+            trip.validate()
+
+            db.session.commit()
+
+            return {
+                "success": True,
+                "message": "Viaje personalizado creado exitosamente",
+                "data": trip.to_dict()
+            }
+
+        except ValueError as ve:
+            db.session.rollback()
+            return {
+                "success": False,
+                "error": str(ve),
+                "error_type": "validation"
+            }
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {
+                "success": False,
+                "error": f"Error de base de datos: {str(e)}",
+                "error_type": "database"
+            }
+        except Exception as e:
+            db.session.rollback()
+            return {
+                "success": False,
+                "error": f"Error inesperado: {str(e)}",
+                "error_type": "server"
+            }
+
+    @staticmethod
     def _create_one_way(data):
         """Crear viaje OneWay."""
         trip = OneWayTrip(
