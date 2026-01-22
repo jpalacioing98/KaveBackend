@@ -173,8 +173,8 @@ def location_flow(wa_user, text=None, location_data=None):
                 }
                 
                 wa_user.temp_data = json.dumps(data, ensure_ascii=False)
-                wa_user.flow = "parcel"
-                wa_user.step = data["finaly"]
+                wa_user.flow = data.get("previous_flow", "menu")
+                wa_user.step = data.get("previous_step", "")
                 flag_modified(wa_user, 'temp_data')
                 
                 print("📝 Step DELIVERY_LOCATION - Datos guardados:", wa_user.temp_data)
@@ -210,8 +210,8 @@ def location_flow(wa_user, text=None, location_data=None):
                 del data["delivery_temp"]
             
             wa_user.temp_data = json.dumps(data, ensure_ascii=False)
-            wa_user.flow = "parcel"
-            wa_user.step = data["finaly"]
+            wa_user.flow = data.get("previous_flow", "menu")
+            wa_user.step = data.get("previous_step", "")
             flag_modified(wa_user, 'temp_data')
             
             print("📝 Step DELIVERY_LOCATION_TEXT - Datos guardados:", wa_user.temp_data)

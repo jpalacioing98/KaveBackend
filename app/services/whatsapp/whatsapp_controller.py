@@ -58,12 +58,7 @@ def handle_webhook():
     
     print(f"📊 Estado actual - Flow: {wa_user.flow}, Step: {wa_user.step}, Traveler: {wa_user.traveler_id}")
 
-    # validacion para cencelar un flujo y regresar al menu principal
-    if text and text.lower() in ["menu", "menú"]:
-        db.session.rollback()  # Descartar cambios no confirmados
-        wa_user.flow = "menu"
-        wa_user.step = None
-        db.session.commit()
+    
     
     # ✅ ORDEN CORRECTO: Primero registro, luego menú
     
@@ -104,18 +99,12 @@ def handle_webhook():
     elif wa_user.flow == "parcel":
         print("📦 Procesando flujo de paquete")
         parcel_flow(wa_user, text)
+        print("📦 Estado después del flujo de paquete - Flow:", wa_user.flow, "Step:", wa_user.step)
         return jsonify({"status": "ok"}), 200
     
     # 📍 Flujo de ubicaciones (independiente)
     elif wa_user.flow == "location":
         print("📍 Procesando flujo de ubicación")
-        
-        # Determinar si es ubicación de recogida o entrega
-        if wa_user.step in ["pickup_location", "pickup_location_text"]:
-            print(f"   → Ubicación de RECOGIDA (step: {wa_user.step})")
-        elif wa_user.step in ["delivery_location", "delivery_location_text"]:
-            print(f"   → Ubicación de ENTREGA (step: {wa_user.step})")
-        
         location_flow(wa_user, text=text, location_data=location_data)
         return jsonify({"status": "ok"}), 200
 

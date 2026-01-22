@@ -130,7 +130,9 @@ def parcel_flow(wa_user, text):
     elif step == "dimensions":
         if text.lower() != "skip":
             data["dimensions"] = text.strip()
-            data["finaly"]="notes"
+        
+        data["previous_flow"] = "parcel"
+        data["previous_step"] = "notes"
         
         wa_user.temp_data = json.dumps(data, ensure_ascii=False)
         # Cambiar flow a location para manejar ubicación de recogida
@@ -158,32 +160,24 @@ def parcel_flow(wa_user, text):
         data["departure_time"] = dt.isoformat()
         dt = datetime.strptime(add_hours_to_now(4), "%d/%m/%Y %H:%M")
         data["arrival_time"] = dt.isoformat()
-
-        wa_user.temp_data = json.dumps(data, ensure_ascii=False)
-        wa_user.step = "select_driver"
-        flag_modified(wa_user, 'temp_data')
-        
-        print("📝 Step NOTES - Datos guardados:", wa_user.temp_data)
-        db.session.commit()
-        
-        return
-    # ---- SELECCIÓN DE CONDUCTOR ----
-    elif wa_user.step == "select_driver":
-        # Guardar contexto para volver después
-    
         data["previous_flow"] = "parcel"
-        data["previous_step"] = "summary"  # O el step que sigue
-        
-        # Cambiar a flujo de conductor
+        data["previous_step"] = "summary" 
         wa_user.flow = "driver_selection"
         wa_user.step = "start"
         wa_user.temp_data = json.dumps(data, ensure_ascii=False)
+        
         flag_modified(wa_user, 'temp_data')
         db.session.commit()
         
+        print("📝 Step NOTES - Datos guardados:", wa_user.temp_data)
+        
+        
+        from app.services.whatsapp.flows.driver_flow import driver_flow
+        driver_flow(wa_user, "") 
         return
+   
     # ---- RESUMEN ----
-    elif wa_user.step == "summary":
+    elif step == "summary":
         summary = f"📦 *Resumen del Envío*\n\n"
         summary += f"*Descripción:* {data.get('package_description', 'N/A')}\n"
         if data.get('weight'):

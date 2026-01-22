@@ -41,7 +41,7 @@ def create_app( config_class=Config):
     from app.routes.parlce_routes import parcel_bp
     from app.routes.custom_routes import custom_trip_bp
     from app.services.whatsapp.routes.whatsapp_routes import whatsapp_bp
-    #from app.routes.driver_routes import driver_bp
+    from app.routes.driver_routes import driver_bp
     
     # Registrar blueprints
     app.register_blueprint(auth_bp)
@@ -49,6 +49,7 @@ def create_app( config_class=Config):
     app.register_blueprint(parcel_bp)
     app.register_blueprint(custom_trip_bp)
     app.register_blueprint(whatsapp_bp)
+    app.register_blueprint(driver_bp)
 
     # # Crear tablas
     with app.app_context():

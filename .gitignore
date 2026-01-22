@@ -7,3 +7,4 @@ migrations/
 test.py
 config.py
 test.json
+.vscode/
