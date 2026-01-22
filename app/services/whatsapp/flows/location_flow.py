@@ -66,7 +66,7 @@ def location_flow(wa_user, text=None, location_data=None):
                 }
                 
                 wa_user.temp_data = json.dumps(data, ensure_ascii=False)
-                wa_user.flow = "parcel"
+                wa_user.flow = "location"
                 wa_user.step = "delivery_location"
                 flag_modified(wa_user, 'temp_data')
                 

@@ -1,5 +1,6 @@
 from flask import request, jsonify
 from app.services.whatsapp import extract_message, send_message
+from app.services.whatsapp.flows.driver_flow import driver_flow
 from app.services.whatsapp.flows.registration_flow import registration_flow
 from app.models.whatsapp_user import WhatsAppUser
 from app import db
@@ -7,6 +8,7 @@ from app.models.traveler import Traveler
 from app.services.whatsapp.flows.menu_flow import menu_flow, send_menu
 from app.services.whatsapp.flows.parcel_flow import parcel_flow
 from app.services.whatsapp.flows.location_flow import location_flow
+from app.services.whatsapp.flows.driver_flow import driver_flow
 
 
 def get_or_create_whatsapp_user(phone):
@@ -56,6 +58,13 @@ def handle_webhook():
     
     print(f"📊 Estado actual - Flow: {wa_user.flow}, Step: {wa_user.step}, Traveler: {wa_user.traveler_id}")
 
+    # validacion para cencelar un flujo y regresar al menu principal
+    if text and text.lower() in ["menu", "menú"]:
+        db.session.rollback()  # Descartar cambios no confirmados
+        wa_user.flow = "menu"
+        wa_user.step = None
+        db.session.commit()
+    
     # ✅ ORDEN CORRECTO: Primero registro, luego menú
     
     # 🔀 Flujo de registro
@@ -118,6 +127,11 @@ def handle_webhook():
         db.session.commit()
         return jsonify({"status": "ok"}), 200
     
+    elif wa_user.flow == "driver_selection":
+        print("🚗 Procesando selección de conductor")
+        driver_flow(wa_user, text)
+        return jsonify({"status": "ok"}), 200
+    
     # ❌ Flujo desconocido
     else:
         print(f"❌ Flujo desconocido: {wa_user.flow}")
@@ -125,3 +139,25 @@ def handle_webhook():
         db.session.commit()
         send_menu(wa_user.phone)
         return jsonify({"status": "ok"}), 200
+    
+
+
+
+#    modo de uso del flujo de driver en otros flujos
+#  elif wa_user.step == "select_driver":
+#         # Guardar contexto para volver después
+#         if not wa_user.temp_data:
+#             wa_user.temp_data = {}
+        
+#         wa_user.temp_data['previous_flow'] = 'parcel'
+#         wa_user.temp_data['previous_step'] = 'payment_method'  # O el step que sigue
+        
+#         # Cambiar a flujo de conductor
+#         wa_user.flow = "driver_selection"
+#         wa_user.step = "start"
+#         db.session.commit()
+        
+#         # Iniciar el flujo
+#         from app.services.whatsapp.flows.driver_flow import driver_flow
+#         driver_flow(wa_user, "")
+#         return

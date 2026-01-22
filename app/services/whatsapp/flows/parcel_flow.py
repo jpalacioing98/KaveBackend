@@ -33,16 +33,33 @@ def parcel_flow(wa_user, text):
     # ---- INICIO ----
     if step == "start":
         wa_user.temp_data = "{}"
-        wa_user.step = "description"
+        wa_user.step = "title"
         db.session.commit()
         
         send_message(
             wa_user.phone,
             "📦 *Nuevo Envío de Paquete*\n\n"
-            "Describe el contenido del paquete:"
+            "identifica tu paquete con un título breve:\n\n"
+            "Ejemplo: *Documentos Importantes*"
         )
         return
 
+     # ---- TÍTULO ----
+    elif step == "title":
+        data["title"] = text.strip()
+        wa_user.temp_data = json.dumps(data, ensure_ascii=False)
+        wa_user.step = "description"
+        flag_modified(wa_user, 'temp_data')
+        
+        print("📝 Step DESCRIPTION - Datos guardados:", wa_user.temp_data)
+        db.session.commit()
+        
+        send_message(
+            wa_user.phone,
+            "📝 añade una descripción del paquete:\n\n"
+            "O escribe *skip* para omitir"
+        )
+        return
     # ---- DESCRIPCIÓN ----
     elif step == "description":
         data["package_description"] = text.strip()
@@ -131,34 +148,6 @@ def parcel_flow(wa_user, text):
             "📎 Usa el botón de adjuntar → Ubicación"
         )
         return
-
-    # # ---- PRECIO ----
-    # elif step == "price":
-    #     try:
-    #         data["price"] = float(text.strip())
-    #     except ValueError:
-    #         send_message(
-    #             wa_user.phone,
-    #             "❌ Por favor ingresa un número válido\n\n"
-    #             "Ejemplo: 18000"
-    #         )
-    #         return
-        
-    #     wa_user.temp_data = json.dumps(data, ensure_ascii=False)
-    #     wa_user.step = "notes"
-    #     flag_modified(wa_user, 'temp_data')
-        
-    #     print("📝 Step PRICE - Datos guardados:", wa_user.temp_data)
-    #     db.session.commit()
-        
-    #     send_message(
-    #         wa_user.phone,
-    #         "📝 ¿Alguna nota o instrucción especial?\n\n"
-    #         "Ejemplo: Contiene alimentos perecederos\n\n"
-    #         "O escribe *skip* para omitir"
-    #     )
-    #     return
-
     # ---- NOTAS ----
     elif step == "notes":
         if text.lower() != "skip":
@@ -171,14 +160,30 @@ def parcel_flow(wa_user, text):
         data["arrival_time"] = dt.isoformat()
 
         wa_user.temp_data = json.dumps(data, ensure_ascii=False)
-        wa_user.step = "confirm"
+        wa_user.step = "select_driver"
         flag_modified(wa_user, 'temp_data')
         
         print("📝 Step NOTES - Datos guardados:", wa_user.temp_data)
         db.session.commit()
         
-      
-        # Mostrar resumen
+        return
+    # ---- SELECCIÓN DE CONDUCTOR ----
+    elif wa_user.step == "select_driver":
+        # Guardar contexto para volver después
+    
+        data["previous_flow"] = "parcel"
+        data["previous_step"] = "summary"  # O el step que sigue
+        
+        # Cambiar a flujo de conductor
+        wa_user.flow = "driver_selection"
+        wa_user.step = "start"
+        wa_user.temp_data = json.dumps(data, ensure_ascii=False)
+        flag_modified(wa_user, 'temp_data')
+        db.session.commit()
+        
+        return
+    # ---- RESUMEN ----
+    elif wa_user.step == "summary":
         summary = f"📦 *Resumen del Envío*\n\n"
         summary += f"*Descripción:* {data.get('package_description', 'N/A')}\n"
         if data.get('weight'):
@@ -188,11 +193,11 @@ def parcel_flow(wa_user, text):
         summary += f"*Precio:* ${data.get('price', 0):,.0f}\n"
         
         pickup = data.get('pickup_address', {})
-        summary += f"\n📍 *Recogida:*\n{pickup.get('location_text', 'N/A')}\n"
+        summary += f"\n📍 *Recogida:*\n{pickup.get('address_text', 'N/A')}\n"
         
         delivery = data.get('delivery_address', {})
-        summary += f"\n📍 *Entrega:*\n{delivery.get('location_text', 'N/A')}\n"
-        
+        summary += f"\n📍 *Entrega:*\n{delivery.get('address_text', 'N/A')}\n"
+
         if data.get('notes'):
             summary += f"\n📝 *Notas:* {data['notes']}\n"
         
@@ -207,96 +212,14 @@ def parcel_flow(wa_user, text):
         summary += f"\n¿Confirmas el envío?\n\n1️⃣ Sí\n2️⃣ No"
         
         send_message(wa_user.phone, summary)
+        wa_user.step = "confirm"
+        db.session.commit()
         return
-
-    # # ---- HORA DE RECOGIDA ----
-    # elif step == "departure_time":
-    #     if text.lower() != "skip":
-    #         try:
-    #             # Convertir formato DD/MM/YYYY HH:MM a ISO
-    #             dt = datetime.strptime(text.strip(), "%d/%m/%Y %H:%M")
-    #             data["departure_time"] = dt.isoformat()
-    #         except ValueError:
-    #             send_message(
-    #                 wa_user.phone,
-    #                 "❌ Formato incorrecto\n\n"
-    #                 "Usa: *DD/MM/YYYY HH:MM*\n"
-    #                 "Ejemplo: 21/10/2025 10:00"
-    #             )
-    #             return
         
-    #     wa_user.temp_data = json.dumps(data, ensure_ascii=False)
-    #     wa_user.step = "arrival_time"
-    #     flag_modified(wa_user, 'temp_data')
-        
-    #     print("📝 Step DEPARTURE_TIME - Datos guardados:", wa_user.temp_data)
-    #     db.session.commit()
-        
-    #     send_message(
-    #         wa_user.phone,
-    #         "🕑 *Hora de Entrega Estimada*\n\n"
-    #         "Formato: *DD/MM/YYYY HH:MM*\n"
-    #         "Ejemplo: 21/10/2025 11:00\n\n"
-    #         "O escribe *skip* para omitir"
-    #     )
-    #     return
-
-    # # ---- HORA DE ENTREGA ----
-    # elif step == "arrival_time":
-    #     if text.lower() != "skip":
-    #         try:
-    #             # Convertir formato DD/MM/YYYY HH:MM a ISO
-    #             dt = datetime.strptime(text.strip(), "%d/%m/%Y %H:%M")
-    #             data["arrival_time"] = dt.isoformat()
-    #         except ValueError:
-    #             send_message(
-    #                 wa_user.phone,
-    #                 "❌ Formato incorrecto\n\n"
-    #                 "Usa: *DD/MM/YYYY HH:MM*\n"
-    #                 "Ejemplo: 21/10/2025 11:00"
-    #             )
-    #             return
-        
-    #     wa_user.temp_data = json.dumps(data, ensure_ascii=False)
-    #     wa_user.step = "confirm"
-    #     flag_modified(wa_user, 'temp_data')
-        
-    #     print("📝 Step ARRIVAL_TIME - Datos guardados:", wa_user.temp_data)
-    #     db.session.commit()
-        
-    #     # Mostrar resumen
-    #     summary = f"📦 *Resumen del Envío*\n\n"
-    #     summary += f"*Descripción:* {data.get('package_description', 'N/A')}\n"
-    #     if data.get('weight'):
-    #         summary += f"*Peso:* {data['weight']} kg\n"
-    #     if data.get('dimensions'):
-    #         summary += f"*Dimensiones:* {data['dimensions']}\n"
-    #     summary += f"*Precio:* ${data.get('price', 0):,.0f}\n"
-        
-    #     pickup = data.get('pickup_address', {})
-    #     summary += f"\n📍 *Recogida:*\n{pickup.get('location_text', 'N/A')}\n"
-        
-    #     delivery = data.get('delivery_address', {})
-    #     summary += f"\n📍 *Entrega:*\n{delivery.get('location_text', 'N/A')}\n"
-        
-    #     if data.get('notes'):
-    #         summary += f"\n📝 *Notas:* {data['notes']}\n"
-        
-    #     if data.get('departure_time'):
-    #         dt = datetime.fromisoformat(data['departure_time'])
-    #         summary += f"\n🕐 *Recogida:* {dt.strftime('%d/%m/%Y %H:%M')}\n"
-        
-    #     if data.get('arrival_time'):
-    #         dt = datetime.fromisoformat(data['arrival_time'])
-    #         summary += f"🕑 *Entrega:* {dt.strftime('%d/%m/%Y %H:%M')}\n"
-        
-    #     summary += f"\n¿Confirmas el envío?\n\n1️⃣ Sí\n2️⃣ No"
-        
-    #     send_message(wa_user.phone, summary)
-    #     return
-
     # ---- CONFIRMAR ----
     elif step == "confirm":
+
+       
         if text == "1":
             db.session.refresh(wa_user)
             
