@@ -6,54 +6,121 @@ from datetime import datetime, timedelta
 
 whatsapp_bp = Blueprint("whatsapp", __name__)
 
+# def extract_message(data):
+#     try:
+#         value = data["entry"][0]["changes"][0]["value"]
+#         message = value["messages"][0]
+#         sender = message["from"]
+#         message_type = message["type"]
+
+#         if message_type == "text":
+#             text = message["text"]["body"].strip()
+#             return sender, text.lower(), None
+        
+#         elif message_type == "interactive":
+#             # Botón de respuesta
+#             if "button_reply" in message["interactive"]:
+#                 text = message["interactive"]["button_reply"]["id"]
+#             # Lista de respuesta
+#             elif "list_reply" in message["interactive"]:
+#                 text = message["interactive"]["list_reply"]["id"]
+#             else:
+#                 text = None
+#             return sender, text.lower() if text else None, None
+        
+#         elif message_type == "location":
+#             location = message["location"]
+#             latitude = location["latitude"]
+#             longitude = location["longitude"]
+            
+#             # Datos opcionales
+#             name = location.get("name")  # Nombre del lugar (si existe)
+#             address = location.get("address")  # Dirección (si existe)
+            
+#             location_data = {
+#                 "latitude": latitude,
+#                 "longitude": longitude,
+#                 "name": name,
+#                 "address": address,
+#                 "locations":location
+#             }
+            
+#             return sender, None, location_data
+        
+#         else:
+#             return sender, None, None
+
+#     except Exception as e:
+#         print(f"Error extrayendo mensaje: {e}")
+#         return None, None, None
+    
 def extract_message(data):
     try:
         value = data["entry"][0]["changes"][0]["value"]
-        message = value["messages"][0]
-        sender = message["from"]
-        message_type = message["type"]
 
+        # 🚫 A veces WhatsApp manda eventos sin mensajes (statuses, etc.)
+        if "messages" not in value:
+            return None, None, None
+
+        message = value["messages"][0]
+        sender = message.get("from")
+        message_type = message.get("type")
+
+        # =========================
+        # 📩 MENSAJE DE TEXTO
+        # =========================
         if message_type == "text":
             text = message["text"]["body"].strip()
             return sender, text.lower(), None
-        
+
+        # =========================
+        # 🔘 MENSAJES INTERACTIVOS
+        # (botones / listas)
+        # =========================
         elif message_type == "interactive":
-            # Botón de respuesta
-            if "button_reply" in message["interactive"]:
-                text = message["interactive"]["button_reply"]["id"]
-            # Lista de respuesta
-            elif "list_reply" in message["interactive"]:
-                text = message["interactive"]["list_reply"]["id"]
-            else:
-                text = None
-            return sender, text.lower() if text else None, None
-        
-        elif message_type == "location":
-            location = message["location"]
-            latitude = location["latitude"]
-            longitude = location["longitude"]
-            
-            # Datos opcionales
-            name = location.get("name")  # Nombre del lugar (si existe)
-            address = location.get("address")  # Dirección (si existe)
-            
-            location_data = {
-                "latitude": latitude,
-                "longitude": longitude,
-                "name": name,
-                "address": address,
-                "locations":location
-            }
-            
-            return sender, None, location_data
-        
-        else:
+            interactive = message.get("interactive", {})
+
+            if interactive.get("type") == "button_reply":
+                button = interactive["button_reply"]
+                return sender, button["id"].lower(), {
+                    "type": "button",
+                    "title": button.get("title")
+                }
+
+            elif interactive.get("type") == "list_reply":
+                item = interactive["list_reply"]
+                return sender, item["id"].lower(), {
+                    "type": "list",
+                    "title": item.get("title"),
+                    "description": item.get("description")
+                }
+
             return sender, None, None
 
+        # =========================
+        # 📍 UBICACIÓN
+        # =========================
+        elif message_type == "location":
+            location = message["location"]
+
+            location_data = {
+                "latitude": location.get("latitude"),
+                "longitude": location.get("longitude"),
+                "name": location.get("name"),
+                "address": location.get("address"),
+                "raw": location
+            }
+
+            return sender, None, location_data
+
+        # =========================
+        # ❓ OTROS TIPOS
+        # =========================
+        return sender, None, None
+
     except Exception as e:
-        print(f"Error extrayendo mensaje: {e}")
+        print(f"❌ Error extrayendo mensaje: {e}")
         return None, None, None
-    
 
 def send_message(to, text):
     url = f"https://graph.facebook.com/v20.0/{Config.PHONE_NUMBER_ID}/messages"
@@ -125,6 +192,33 @@ def send_interactive_menu(phone, body, buttons):
     
     print(f"✅ Mensaje interactivo enviado exitosamente")
     return response.json()
+
+def send_confirmation_message(phone, message, yes_id="confirm_yes", no_id="confirm_no"):
+    """
+    Envía un mensaje de confirmación con botones Sí / No vía WhatsApp
+
+    :param phone: número destino (con código país, sin +)
+    :param message: texto del mensaje de confirmación
+    :param yes_id: id del botón de confirmación
+    :param no_id: id del botón de cancelación
+    """
+
+    buttons = [
+        {
+            "id": yes_id,
+            "title": "✅ Sí, confirmar"
+        },
+        {
+            "id": no_id,
+            "title": "❌ No, cancelar"
+        }
+    ]
+
+    return send_interactive_menu(
+        phone=phone,
+        body=message,
+        buttons=buttons
+    )
 
 
 def add_hours_to_now(hours):

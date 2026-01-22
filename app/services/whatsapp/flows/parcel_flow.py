@@ -1,6 +1,6 @@
 from urllib import response
 from app import db
-from app.services.whatsapp import send_message, add_hours_to_now
+from app.services.whatsapp import send_message, add_hours_to_now, send_confirmation_message 
 from sqlalchemy.orm.attributes import flag_modified
 from app.controllers.parcel_controller import create_package_trip_service
 import json
@@ -162,8 +162,7 @@ def parcel_flow(wa_user, text):
         data["arrival_time"] = dt.isoformat()
         data["previous_flow"] = "parcel"
         data["previous_step"] = "summary" 
-        wa_user.flow = "driver_selection"
-        wa_user.step = "start"
+        wa_user.step = "select_driver"
         wa_user.temp_data = json.dumps(data, ensure_ascii=False)
         
         flag_modified(wa_user, 'temp_data')
@@ -171,9 +170,22 @@ def parcel_flow(wa_user, text):
         
         print("📝 Step NOTES - Datos guardados:", wa_user.temp_data)
         
+        send_confirmation_message(
+            wa_user.phone,message="¿Deseas seleccionar un conductor para el envío ahora o dejar que los conductores acepten su solicitud?\n\n ")
         
+        return
+    elif step == "select_driver":
         from app.services.whatsapp.flows.driver_flow import driver_flow
-        driver_flow(wa_user, "") 
+        if text == "confirm_yes":
+            wa_user.flow = "driver_selection"
+            wa_user.step = "start"
+            db.session.commit() 
+            driver_flow(wa_user, "")
+        elif text == "confirm_no":
+            wa_user.flow = "parcel"
+            wa_user.step = "summary"
+            db.session.commit()
+                 
         return
    
     # ---- RESUMEN ----

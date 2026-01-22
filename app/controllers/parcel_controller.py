@@ -56,7 +56,7 @@ def create_package_trip_service(data: dict) -> dict:
         db.session.flush()
 
         # === Determinar estado inicial según driver_id ===
-        driver_id = data.get("driver_id")
+        driver_id = data.get("selected_driver_id")
         
         # Convertir string "Null" a None
         if driver_id == "Null" or driver_id == "null" or driver_id == "":
@@ -69,7 +69,7 @@ def create_package_trip_service(data: dict) -> dict:
             trip_type=TripType.PACKAGE,
             status=initial_status,
             driver_id=driver_id,
-            vehicle_id=data.get("vehicle_id"),
+            vehicle_id=data.get("selected_driver_vehicle_id"),
             price=data.get("price"),
             notes=data.get("notes"),
             departure_time=datetime.fromisoformat(data["departure_time"]) if data.get("departure_time") else None,
