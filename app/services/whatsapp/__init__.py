@@ -193,7 +193,7 @@ def send_interactive_menu(phone, body, buttons):
     print(f"✅ Mensaje interactivo enviado exitosamente")
     return response.json()
 
-def send_confirmation_message(phone, message, yes_id="confirm_yes", no_id="confirm_no"):
+def send_confirmation_message(phone, message, yes_id="confirm_yes", no_id="confirm_no",yes_title="✅ Sí, confirmar", no_title="❌ No, cancelar"):
     """
     Envía un mensaje de confirmación con botones Sí / No vía WhatsApp
 
@@ -206,11 +206,11 @@ def send_confirmation_message(phone, message, yes_id="confirm_yes", no_id="confi
     buttons = [
         {
             "id": yes_id,
-            "title": "✅ Sí, confirmar"
+            "title": yes_title
         },
         {
             "id": no_id,
-            "title": "❌ No, cancelar"
+            "title": no_title
         }
     ]
 

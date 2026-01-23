@@ -1,0 +1,24 @@
+-------------------------------------
+1. estilo de promp para los flijos:
+1.1 parcel y driver tanto flow como  model 
+1.2 controller custom_driver
+1.3 whatsapp_controller
+
+-----------one way----------------------
+
+1. tipo de viajes(reservado o compartido)
+2. lugar de recogida
+3. lugar de destino
+4. selecion del driver
+5. notas
+6. confirmacion 
+
+----------------round----------------------
+
+1. lugar de recogida
+2. lugar de destino
+3. selecion del driver
+4. notas
+5. requiere espera( si/no)
+6. confirmacion 
+// Round: "requires_wait", "wait_time_minutes"

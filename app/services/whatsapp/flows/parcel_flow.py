@@ -218,6 +218,7 @@ def parcel_flow(wa_user, text):
         
         summary += f"\n¿Confirmas el envío?\n\n"
         
+        
         send_confirmation_message(wa_user.phone, summary)
         wa_user.step = "confirm"
         db.session.commit()
