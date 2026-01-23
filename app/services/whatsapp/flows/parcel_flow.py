@@ -174,6 +174,7 @@ def parcel_flow(wa_user, text):
             wa_user.phone,message="¿Deseas seleccionar un conductor para el envío ahora o dejar que los conductores acepten su solicitud?\n\n ")
         
         return
+    
     elif step == "select_driver":
         from app.services.whatsapp.flows.driver_flow import driver_flow
         if text == "confirm_yes":
@@ -187,7 +188,7 @@ def parcel_flow(wa_user, text):
             db.session.commit()
                  
         return
-   
+    
     # ---- RESUMEN ----
     elif step == "summary":
         summary = f"📦 *Resumen del Envío*\n\n"
@@ -215,9 +216,9 @@ def parcel_flow(wa_user, text):
             dt = datetime.fromisoformat(data['arrival_time'])
             summary += f"🕑 *Entrega:* {dt.strftime('%d/%m/%Y %H:%M')}\n"
         
-        summary += f"\n¿Confirmas el envío?\n\n1️⃣ Sí\n2️⃣ No"
+        summary += f"\n¿Confirmas el envío?\n\n"
         
-        send_message(wa_user.phone, summary)
+        send_confirmation_message(wa_user.phone, summary)
         wa_user.step = "confirm"
         db.session.commit()
         return
@@ -225,8 +226,7 @@ def parcel_flow(wa_user, text):
     # ---- CONFIRMAR ----
     elif step == "confirm":
 
-       
-        if text == "1":
+        if text == "confirm_yes":
             db.session.refresh(wa_user)
             
             if isinstance(wa_user.temp_data, str):

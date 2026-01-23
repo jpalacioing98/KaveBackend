@@ -1,7 +1,7 @@
 from app.models.user import User
 from app.models.traveler import Traveler
 from app import db
-from app.services.whatsapp import send_message
+from app.services.whatsapp import send_message,send_confirmation_message
 from sqlalchemy.orm.attributes import flag_modified
 from app.services.whatsapp.flows.menu_flow import send_menu
 import secrets
@@ -61,7 +61,7 @@ def registration_flow(wa_user, text):
         
         send_message(
             wa_user.phone,
-            "🆔 Ingresa tu *DNI*"
+            "🆔 Ingresa tu *Numero de Identificación*"
         )
         return
 
@@ -74,20 +74,21 @@ def registration_flow(wa_user, text):
         
         print("📝 Step DNI - Datos guardados:", wa_user.temp_data)
         db.session.commit()
+        message = f"✅ ¿Confirmas tu registro?\n\n"
+        message +=    f"*Nombre:* {data.get('full_name', 'N/A')}\n"
+        message +=    f"*Email:* {data.get('email', 'N/A')}\n"
+        message +=    f"*Numero de Identificación:* {data.get('dni', 'N/A')}\n\n"
         
-        send_message(
+        send_confirmation_message(
             wa_user.phone,
-            f"✅ ¿Confirmas tu registro?\n\n"
-            f"*Nombre:* {data.get('full_name', 'N/A')}\n"
-            f"*Email:* {data.get('email', 'N/A')}\n"
-            f"*DNI:* {data.get('dni', 'N/A')}\n\n"
-            f"1️⃣ Sí\n2️⃣ No"
+            message
         )
+        
         return
 
     # ---- CONFIRMAR ----
     elif step == "confirm":
-        if text == "1":
+        if text == "confirm_yes":
             db.session.refresh(wa_user)
             
             if isinstance(wa_user.temp_data, str):

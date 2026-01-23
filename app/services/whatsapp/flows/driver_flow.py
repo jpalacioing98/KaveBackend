@@ -1,4 +1,4 @@
-from app.services.whatsapp import send_message, send_interactive_menu
+from app.services.whatsapp import send_message, send_interactive_menu, send_continue_message
 from app import db
 from app.models.driver import Driver
 import json
@@ -265,8 +265,8 @@ def return_to_previous_flow(wa_user):
     """Regresa al flujo que invocó la selección de conductor"""
     data = get_temp_data(wa_user)
     
-    previous_flow = data.get('previous_flow', 'menu')
-    previous_step = data.get('previous_step', '')  # ✅ FIX: Cambiado a 'notes' para parcel_flow
+    previous_flow = data.get('previous_flow')
+    previous_step = data.get('previous_step')  # ✅ FIX: Cambiado a 'notes' para parcel_flow
     
     print(f"   → Regresando a flow: {previous_flow}, step: {previous_step}")
     
@@ -274,9 +274,10 @@ def return_to_previous_flow(wa_user):
     wa_user.step = previous_step
     db.session.commit()
     
-    # ✅ FIX: Ejecutar el siguiente paso del flujo anterior
-    if previous_flow == "parcel":
-        from app.services.whatsapp.flows.parcel_flow import parcel_flow
-        parcel_flow(wa_user, "")
+    send_continue_message(
+        wa_user.phone,
+        "✅ Has seleccionado un conductor.\n\n"
+        "Continuemos con el proceso."   
+    )
     
         

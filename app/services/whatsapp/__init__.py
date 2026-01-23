@@ -221,6 +221,31 @@ def send_confirmation_message(phone, message, yes_id="confirm_yes", no_id="confi
     )
 
 
+def send_continue_message(phone, message, yes_id="confirm_yes"):
+    """
+    Envía un mensaje de confirmación con botones Sí / No vía WhatsApp
+
+    :param phone: número destino (con código país, sin +)
+    :param message: texto del mensaje de confirmación
+    :param yes_id: id del botón de confirmación
+    :param no_id: id del botón de cancelación
+    """
+
+    buttons = [
+        {
+            "id": yes_id,
+            "title": "✅ Sí, Continuar"
+        },
+       
+    ]
+
+    return send_interactive_menu(
+        phone=phone,
+        body=message,
+        buttons=buttons
+    )
+
+
 def add_hours_to_now(hours):
     """
     Devuelve la hora del sistema sumando el número de horas indicado.

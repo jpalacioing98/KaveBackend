@@ -58,7 +58,8 @@ def handle_webhook():
     
     print(f"📊 Estado actual - Flow: {wa_user.flow}, Step: {wa_user.step}, Traveler: {wa_user.traveler_id}")
 
-    
+    if text is None and location_data is None:
+        return jsonify({"status": "ignored"}), 200
     
     # ✅ ORDEN CORRECTO: Primero registro, luego menú
     
@@ -116,6 +117,7 @@ def handle_webhook():
         db.session.commit()
         return jsonify({"status": "ok"}), 200
     
+    # 🚗 Flujo de selección de conductor
     elif wa_user.flow == "driver_selection":
         print("🚗 Procesando selección de conductor")
         driver_flow(wa_user, text)
@@ -126,7 +128,6 @@ def handle_webhook():
         print(f"❌ Flujo desconocido: {wa_user.flow}")
         wa_user.flow = "menu"
         db.session.commit()
-        send_menu(wa_user.phone)
         return jsonify({"status": "ok"}), 200
     
 
