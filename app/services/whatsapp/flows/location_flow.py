@@ -1,5 +1,5 @@
 from app import db
-from app.services.whatsapp import send_message
+from app.services.whatsapp import send_confirmation_message, send_message
 from sqlalchemy.orm.attributes import flag_modified
 import json
 
@@ -179,13 +179,18 @@ def location_flow(wa_user, text=None, location_data=None):
                 
                 print("📝 Step DELIVERY_LOCATION - Datos guardados:", wa_user.temp_data)
                 db.session.commit()
-                
-                send_message(
-                    wa_user.phone,
-                    "📝 ¿Alguna nota o instrucción especial?\n\n"
-                    "Ejemplo: Contiene alimentos perecederos\n\n"
-                    "O escribe *skip* para omitir"
-                )
+                if "previous_flow" in data and data["previous_flow"] == "parcel":
+                    send_message(
+                        wa_user.phone,
+                        "📝 ¿Alguna nota o instrucción especial?\n\n"
+                        "Ejemplo: Contiene alimentos perecederos\n\n"
+                        "O escribe *skip* para omitir"
+                    )
+                elif "previous_flow" in data and data["previous_flow"] == "trip_request":
+                    send_confirmation_message(
+                        wa_user.phone,
+                        message="¿Deseas seleccionar un conductor para el viaje ahora o dejar que los conductores acepten tu solicitud?\n\n"
+                    )
         else:
             send_message(
                 wa_user.phone,
@@ -217,12 +222,18 @@ def location_flow(wa_user, text=None, location_data=None):
             print("📝 Step DELIVERY_LOCATION_TEXT - Datos guardados:", wa_user.temp_data)
             db.session.commit()
             
-            send_message(
-                wa_user.phone,
-                f"✅ Ubicación de entrega guardada:\n{text.strip()}\n\n"
-                "💰 ¿Cuál es el precio del envío?\n\n"
-                "Ejemplo: 18000"
-            )
+            if "previous_flow" in data and data["previous_flow"] == "parcel":
+                    send_message(
+                        wa_user.phone,
+                        "📝 ¿Alguna nota o instrucción especial?\n\n"
+                        "Ejemplo: Contiene alimentos perecederos\n\n"
+                        "O escribe *skip* para omitir"
+                    )
+            elif "previous_flow" in data and data["previous_flow"] == "trip_request":
+                    send_confirmation_message(
+                        wa_user.phone,
+                        message="¿Deseas seleccionar un conductor para el viaje ahora o dejar que los conductores acepten tu solicitud?\n\n"
+                    )
         else:
             send_message(
                 wa_user.phone,

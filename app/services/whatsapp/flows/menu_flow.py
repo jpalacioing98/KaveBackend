@@ -1,6 +1,8 @@
 from app.services.whatsapp import send_message
 from app import db
 from app.services.whatsapp.flows.parcel_flow import parcel_flow
+from app.services.whatsapp.flows.one_way_flow import custom_trip_flow
+from app.services.whatsapp.flows.round_flow import round_trip_flow
 
 def menu_flow(wa_user, text):
     text = text.strip()
@@ -20,17 +22,19 @@ def menu_flow(wa_user, text):
         wa_user.step = "start"
         db.session.commit()
         
-        send_message(wa_user.phone, "🚕 *Solicitud de viaje*\n\nCuéntame desde dónde viajas.")
+        custom_trip_flow(wa_user, "")
         return
 
     # Opción 2: Programar viaje
     elif text == "2":
-        print("🗓️ Opción 2: Programar viaje")
-        wa_user.flow = "scheduled_trip"
-        wa_user.step = "start"
-        db.session.commit()
-        send_message(wa_user.phone, "🗓️ *Programar viaje*\n\n¿Para qué fecha deseas el viaje?")
-        return
+            print("🔄 Opción 2: Viaje Round Trip")
+            wa_user.flow = "round_trip"
+            wa_user.step = "start"
+            db.session.commit()
+            
+            round_trip_flow(wa_user, "")
+            return
+        
 
     # Opción 3: Encomiendas
     elif text == "3":
@@ -85,8 +89,8 @@ def send_menu(phone):
             phone,
             body="📋 *Menú Principal*\n\n¿Qué servicio necesitas?",
             buttons=[
-                {"id": "1", "title": "🚕 Solicitar viaje"},
-                {"id": "2", "title": "🗓️ Programar viaje"},
+                {"id": "1", "title": "🚕 Solicitar Viaje ida"},
+                {"id": "2", "title": " 🔄 Solicitar Viaje ida y vuelta"},
                 {"id": "more", "title": "➕ Más opciones"}
             ]
         )

@@ -1,6 +1,6 @@
 -------------------------------------
-1. estilo de promp para los flijos:
-1.1 parcel y driver tanto flow como  model 
+1. estilo de promp para los flujos:
+1.1 parcel y driver tanto flow como model 
 1.2 controller custom_driver
 1.3 whatsapp_controller
 
@@ -22,3 +22,8 @@
 5. requiere espera( si/no)
 6. confirmacion 
 // Round: "requires_wait", "wait_time_minutes"
+
+
+-----------fitxes-----------
+1. boton de no en la configuracion de vuelta de la ubicacion
+2. agregar mas de dos ubicaciones de recojida y destino

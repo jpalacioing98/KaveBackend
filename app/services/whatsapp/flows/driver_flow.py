@@ -1,4 +1,4 @@
-from app.services.whatsapp import send_message, send_interactive_menu, send_continue_message
+from app.services.whatsapp import send_confirmation_message, send_message, send_interactive_menu, send_continue_message
 from app import db
 from app.models.driver import Driver
 import json
@@ -94,24 +94,26 @@ def driver_flow(wa_user, text, ):
     
     # Paso 4: Confirmar selección
     elif step == "confirm_selection":
-        if text.lower() in ["si", "sí", "s", "yes", "1"]:
+
+        if text == "confirm_yes":
             print("   → Usuario confirmó selección")
             finalize_driver_selection(wa_user)
             return
-        
-        elif text.lower() in ["no", "n", "2"]:
+
+        elif text == "confirm_no":
             print("   → Usuario rechazó, volviendo a opciones")
             wa_user.step = "start"
             db.session.commit()
             show_driver_selection_options(wa_user)
             return
-        
+
         else:
             send_message(
                 wa_user.phone,
-                "❌ Por favor responde *Sí* o *No*"
+                "Por favor usa los botones para confirmar la selección."
             )
             return
+
 
 
 def show_driver_selection_options(wa_user):
@@ -229,18 +231,18 @@ def confirm_driver_selection(wa_user, driver):
     vehicle_info = f"{driver.vehicle.make} {driver.vehicle.plate}" if driver.vehicle else "Vehículo no asignado"
     
     message = (
-        f"✅ *Has seleccionado:*\n\n"
+        f"👤 *Has seleccionado el siguiente conductor:*\n\n"
         f"👤 {driver.full_name}\n"
         f"🚗 {vehicle_info}\n"
         f"📱 {driver.phone}\n\n"
-        f"¿Confirmas esta selección?\n\n"
-        f"Responde *Sí* o *No*"
+        f"¿Confirmas esta selección?"
     )
-    
-    send_message(wa_user.phone, message)
-    
-    # ✅ FIX: Guardar datos antes de cambiar step
+
+    # 👇 USAR TU SISTEMA REAL DE CONFIRMACIÓN
+    send_confirmation_message(wa_user.phone, message)
+
     save_temp_data(wa_user, data)
+
     wa_user.step = "confirm_selection"
     db.session.commit()
 
@@ -274,10 +276,24 @@ def return_to_previous_flow(wa_user):
     wa_user.step = previous_step
     db.session.commit()
     
-    send_continue_message(
-        wa_user.phone,
-        "✅ Has seleccionado un conductor.\n\n"
-        "Continuemos con el proceso."   
-    )
-    
+    if previous_flow == "parcel":
+        send_continue_message(
+            wa_user.phone,
+            "✅ Has seleccionado un conductor.\n\n"
+            "Continuemos con el proceso."   
+        )
+    elif previous_flow == "trip_request":
+        send_message(
+                wa_user.phone,
+                "📝 *Notas Adicionales*\n\n"
+                "¿Tienes alguna nota o instrucción especial para el conductor?\n\n"
+                "O escribe *skip* para omitir"
+            )
+    elif previous_flow == "round_trip":
+        send_message(
+                wa_user.phone,
+                "📝 *Notas Adicionales*\n\n"
+                "¿Tienes alguna nota o instrucción especial?\n\n"
+                "O escribe *skip* para omitir"
+            )
         

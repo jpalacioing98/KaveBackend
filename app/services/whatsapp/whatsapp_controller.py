@@ -9,6 +9,9 @@ from app.services.whatsapp.flows.menu_flow import menu_flow, send_menu
 from app.services.whatsapp.flows.parcel_flow import parcel_flow
 from app.services.whatsapp.flows.location_flow import location_flow
 from app.services.whatsapp.flows.driver_flow import driver_flow
+from app.services.whatsapp.flows.one_way_flow import custom_trip_flow
+from app.services.whatsapp.flows.round_flow import round_trip_flow
+from app.services.whatsapp.flows.multilocation_flow import multilocation_flow
 
 
 def get_or_create_whatsapp_user(phone):
@@ -83,17 +86,13 @@ def handle_webhook():
     # 🚕 Flujo de viaje
     elif wa_user.flow == "trip_request":
         print("🚕 Procesando solicitud de viaje")
-        send_message(wa_user.phone, "🚧 Función en desarrollo\n\nEscribe *menu* para volver al menú principal.")
-        wa_user.flow = "menu"
-        db.session.commit()
+        custom_trip_flow(wa_user, text)
         return jsonify({"status": "ok"}), 200
 
     # 🗓️ Flujo de viaje programado
-    elif wa_user.flow == "scheduled_trip":
-        print("🗓️ Procesando viaje programado")
-        send_message(wa_user.phone, "🚧 Función en desarrollo\n\nEscribe *menu* para volver al menú principal.")
-        wa_user.flow = "menu"
-        db.session.commit()
+    elif wa_user.flow == "round_trip":
+        print("🔄 Procesando flujo de viaje Round Trip")
+        round_trip_flow(wa_user, text)
         return jsonify({"status": "ok"}), 200
 
     # 📦 Flujo de encomiendas
@@ -107,6 +106,11 @@ def handle_webhook():
     elif wa_user.flow == "location":
         print("📍 Procesando flujo de ubicación")
         location_flow(wa_user, text=text, location_data=location_data)
+        return jsonify({"status": "ok"}), 200
+
+    elif wa_user.flow == "multilocation":
+        print("📍 Procesando flujo de ubicación")
+        multilocation_flow(wa_user, text=text, location_data=location_data)
         return jsonify({"status": "ok"}), 200
 
     # 🚚 Flujo de fletes
